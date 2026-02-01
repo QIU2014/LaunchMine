@@ -70,11 +70,15 @@ public class Main extends JFrame {
         setResizable(false);
         setIconImage(createAppIcon());
 
-        Desktop desktop = Desktop.getDesktop();
-        desktop.setAboutHandler(e -> new AboutDialog(main));
-        desktop.setPreferencesHandler(e -> new OptionsDialog(main));
-        desktop.setDefaultMenuBar(ui.createMenuBar());
-        desktop.setQuitHandler((e, response) -> quitApplication());
+        try {
+            Desktop desktop = Desktop.getDesktop();
+            desktop.setAboutHandler(e -> new AboutDialog(main));
+            desktop.setPreferencesHandler(e -> new OptionsDialog(main));
+            desktop.setDefaultMenuBar(ui.createMenuBar());
+            desktop.setQuitHandler((e, response) -> quitApplication());
+        } catch (Exception e) {
+            setupNonMacOSIntegration();
+        }
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -97,6 +101,77 @@ public class Main extends JFrame {
         // Validate versions in background AFTER UI is shown
         SwingUtilities.invokeLater(() -> {
             validateAllVersionsOnStartup();
+        });
+    }
+
+    private void setupNonMacOSIntegration() {
+        setJMenuBar(ui.createMenuBar());
+        setupNonMacOSShortcuts();
+    }
+
+    private void setupNonMacOSShortcuts() {
+        // Set up AFTER UI is initialized
+        SwingUtilities.invokeLater(() -> {
+            // About shortcut: Ctrl+Shift+A (Windows/Linux)
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_A,
+                            KeyEvent.CTRL_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK),
+                    "openAbout");
+
+            getRootPane().getActionMap().put("openAbout", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (ui != null) {
+                        ui.showAboutDialog();
+                    }
+                }
+            });
+
+            // Preferences shortcut: Ctrl+, (Windows/Linux)
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_COMMA,
+                            KeyEvent.CTRL_DOWN_MASK),
+                    "openPreferences");
+
+            getRootPane().getActionMap().put("openPreferences", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (ui != null) {
+                        ui.showOptionsDialog();
+                    }
+                }
+            });
+
+            // Quit shortcut: Alt+F4 (Windows/Linux) or Ctrl+Q
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_Q,
+                            KeyEvent.CTRL_DOWN_MASK),
+                    "quitApplication");
+
+            getRootPane().getActionMap().put("quitApplication", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    quitApplication();
+                }
+            });
+
+            // Also add Escape key to close dialogs
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                    "cancelAction");
+
+            getRootPane().getActionMap().put("cancelAction", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // Close any open dialogs
+                    Window[] windows = Window.getWindows();
+                    for (Window window : windows) {
+                        if (window instanceof JDialog && window.isVisible()) {
+                            ((JDialog) window).dispose();
+                        }
+                    }
+                }
+            });
         });
     }
 
@@ -562,43 +637,41 @@ public class Main extends JFrame {
     public PreferencesUtils getPreferencesHandler() { return preferencesHandler; }
 
     static void main(String[] args) {
-        // Set macOS-specific system properties BEFORE any UI is created
-        System.setProperty("apple.awt.application.name", "LaunchMine");
-        System.setProperty("apple.laf.useScreenMenuBar", "true");
-        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "LaunchMine");
+        boolean isMacOS = System.getProperty("os.name").toLowerCase().contains("mac");
 
-        // This is the key one for suppressing the CapsLock warning:
-        System.setProperty("apple.awt.textantialiasing", "true");
-
-        System.setProperty("apple.awt.textantialiasing", "true");
-        System.setProperty("apple.awt.graphics.UseQuartz", "true");
+        if (isMacOS) {
+            System.setProperty("apple.awt.application.name", "LaunchMine");
+            System.setProperty("apple.laf.useScreenMenuBar", "true");
+            System.setProperty("com.apple.mrj.application.apple.menu.about.name", "LaunchMine");
+            System.setProperty("apple.awt.textantialiasing", "true");
+            System.setProperty("apple.awt.graphics.UseQuartz", "true");
+        }
 
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 
                 // Additional macOS-specific UI settings
-                if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                if (isMacOS) {
                     // Force the menu bar to appear
                     UIManager.put("MenuBarUI", "javax.swing.plaf.metal.MetalMenuBarUI");
                 }
 
+                main = new Main();
+                main.setVisible(true);
+
+                // Set menu bar after window is created
                 main.setJMenuBar(main.ui.createMenuBar());
                 main.revalidate();
 
-                // Also try this after a delay
-                Timer timer = new Timer(1000, e -> {
-                    main.setJMenuBar(main.ui.createMenuBar());
-                    main.revalidate();
-                });
-                timer.setRepeats(false);
-                timer.start();
             } catch (Exception e) {
                 e.printStackTrace();
+                JOptionPane.showMessageDialog(null,
+                        "Failed to start LaunchMine: " + e.getMessage(),
+                        "Startup Error",
+                        JOptionPane.ERROR_MESSAGE);
+                System.exit(1);
             }
-
-            Main main = new Main();
-            main.setVisible(true);
         });
     }
 
