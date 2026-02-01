@@ -146,7 +146,7 @@ java -jar target/launchmine*.jar
 4. Test thoroughly
 5. Submit a pull request
 ## License
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/QIU2014/LaunchMine) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/QIU2014/LaunchMine?tab=MIT-1-ov-file) file for details.
 ## Credits
 - Author: qiuerichanru
 - UI Design: Modern, responsive Swing interface
