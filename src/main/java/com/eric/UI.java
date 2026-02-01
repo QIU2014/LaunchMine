@@ -1,9 +1,7 @@
 package com.eric;
 
 import com.eric.ui.AboutDialog;
-import com.eric.ui.LanguageDialog;
 import com.eric.ui.OptionsDialog;
-import com.eric.utils.I18nUtils;
 import com.eric.utils.InstanceUtils;
 import com.eric.utils.JsonUtils;
 import com.eric.utils.LaunchUtils;
