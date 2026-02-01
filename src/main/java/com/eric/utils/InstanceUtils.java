@@ -1,9 +1,12 @@
 package com.eric.utils;
 
+import com.eric.Main;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,9 +14,23 @@ public class InstanceUtils {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     private static final String VERSION_MANIFEST_FILE = "version_manifest_v2.json";
+    private static final int MAX_CACHED_VERSIONS = 50;
 
     // Cache for version list
     private static List<VersionInfo> versionsCache = null;
+
+    private Main main;
+
+    public InstanceUtils() {
+        this.main = new Main();
+    }
+
+    public List<VersionInfo> getVersionsCache() {
+        return versionsCache;
+    }
+    public static void setVersionsCache(List<VersionInfo> versionsCache) {
+        InstanceUtils.versionsCache = versionsCache;
+    }
 
     /**
      * Download or update the version manifest from Mojang's server
@@ -37,6 +54,10 @@ public class InstanceUtils {
     public static List<VersionInfo> getVersions() throws IOException {
         if (versionsCache == null) {
             loadVersionsFromManifest();
+        }
+
+        if (versionsCache.size() > MAX_CACHED_VERSIONS) {
+            return new ArrayList<>(versionsCache.subList(0, MAX_CACHED_VERSIONS));
         }
         return new ArrayList<>(versionsCache);
     }
@@ -78,6 +99,7 @@ public class InstanceUtils {
         String filePath = versionDir + "/" + versionId + ".json";
 
         File dir = new File(versionDir);
+        Path thisFolder = Paths.get(".");
         if (!dir.exists()) {
             dir.mkdirs();
         }

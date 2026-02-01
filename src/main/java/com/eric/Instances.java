@@ -3,16 +3,17 @@ package com.eric;
 import javax.swing.*;
 import java.awt.*;
 
-public class Instances extends JFrame {
-    private final Main main;
+public class Instances extends JDialog {
     private final UI ui;
-    public Instances(Main main, UI ui) {
-        this.main = main;
+    public Instances(JFrame parentFrame, UI ui) {
         this.ui = ui;
 
+        super(parentFrame, "Instances", false);
+
+        setType(Type.UTILITY);
         setTitle("Instances");
         setSize(1000,550);
-        setLocationRelativeTo(null);
+        setLocationRelativeTo(parentFrame);
         setResizable(false);
 
         Container container = getContentPane();

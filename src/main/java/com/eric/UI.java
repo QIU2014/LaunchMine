@@ -1,25 +1,41 @@
 package com.eric;
 
+import com.eric.ui.AboutDialog;
+import com.eric.ui.LanguageDialog;
+import com.eric.ui.OptionsDialog;
+import com.eric.utils.I18nUtils;
 import com.eric.utils.InstanceUtils;
 import com.eric.utils.JsonUtils;
 import com.eric.utils.LaunchUtils;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.plaf.basic.BasicButtonUI;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.net.URI;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.io.File;
 
 public class UI {
     private final Main main;
     private JLabel instanceNameLabel;
     private JButton startInstanceBtn, killInstanceBtn, editInstanceBtn, folderInstanceBtn, copyInstanceBtn, delInstanceBtn, confirmBtn;
-    private JList<String> instanceList;
+    public JList<String> instanceList;
+    private JMenu languageMenu;
     private Map<String, Object> selectedVersion;
+    // private ResourceBundle lang = ResourceBundle.getBundle("lang", Locale.ROOT);
+    private static final List<Locale> SUPPORTED_LANGS = Arrays.asList(
+            Locale.ROOT,
+            Locale.CHINA
+    );
 
     // Color scheme for modern look
     private static final Color PRIMARY_COLOR = new Color(41, 128, 185);     // Blue
@@ -34,8 +50,339 @@ public class UI {
     public UI(Main main) {
         this.main = main;
     }
+    // public ResourceBundle getLang() { return lang; }
 
     public JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        // Check if we're on macOS
+        boolean isMacOS = System.getProperty("os.name").toLowerCase().contains("mac");
+
+        if (isMacOS) {
+            // For macOS, set up system properties and create appropriate menu
+            setupMacOSProperties();
+            return createModernMacOSMenuBar();
+        } else {
+            // For Windows/Linux, use standard menu bar
+            return createStandardMenuBar();
+        }
+    }
+
+    private void setupMacOSProperties() {
+        // Essential macOS properties
+        System.setProperty("apple.laf.useScreenMenuBar", "true");
+        System.setProperty("apple.awt.application.name", "LaunchMine");
+        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "LaunchMine");
+        System.setProperty("apple.awt.textantialiasing", "true");
+
+        // Optional: Set dock icon if available
+        try {
+            // Using Java 9+ Taskbar API
+            if (Taskbar.isTaskbarSupported()) {
+                Taskbar taskbar = Taskbar.getTaskbar();
+                if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                    // Try to load your app icon
+                    Image icon = loadAppIcon();
+                    if (icon != null) {
+                        taskbar.setIconImage(icon);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not set dock icon: " + e.getMessage());
+        }
+    }
+
+    private Image loadAppIcon() {
+        // Try to load icon from resources
+        try {
+            // Look for icon in common locations
+            String[] iconPaths = {
+                    "/icon.png",
+                    "/icons/icon.png",
+                    "/resources/icon.png",
+                    "icon.png"
+            };
+
+            for (String path : iconPaths) {
+                InputStream is = getClass().getResourceAsStream(path);
+                if (is != null) {
+                    return ImageIO.read(is);
+                }
+            }
+
+            // Create a simple default icon
+            BufferedImage defaultIcon = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = defaultIcon.createGraphics();
+            g2d.setColor(new Color(41, 128, 185)); // Your primary color
+            g2d.fillRect(0, 0, 64, 64);
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 24));
+            g2d.drawString("LM", 16, 42);
+            g2d.dispose();
+            return defaultIcon;
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private JMenuBar createModernMacOSMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        // On macOS with useScreenMenuBar=true, the application menu
+        // (LaunchMine -> About, Preferences, etc.) is created automatically by macOS.
+        // We just need to create the other menus that will appear in the system menu bar.
+
+        // File menu
+        JMenu fileMenu = new JMenu("File");
+
+        JMenuItem newInstanceItem = new JMenuItem("New Instance...");
+        JMenuItem openFolderItem = new JMenuItem("Open .minecraft Folder");
+        JMenuItem exitItem = new JMenuItem("Exit");
+
+        // Add macOS keyboard shortcuts
+        int menuShortcutKeyMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+
+        newInstanceItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_N, menuShortcutKeyMask
+        ));
+
+        exitItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_Q, menuShortcutKeyMask
+        ));
+
+        // Add action listeners
+        newInstanceItem.addActionListener(e -> {
+            if (main.getInstances() != null) {
+                main.getInstances().setVisible(true);
+            }
+        });
+
+        openFolderItem.addActionListener(e -> {
+            try {
+                File minecraftDir = new File("./.minecraft");
+                if (Desktop.isDesktopSupported() && minecraftDir.exists()) {
+                    Desktop.getDesktop().open(minecraftDir);
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(main,
+                        "Could not open folder: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        exitItem.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(main,
+                    "Are you sure you want to exit LaunchMine?",
+                    "Exit LaunchMine",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
+                System.exit(0);
+            }
+        });
+
+        fileMenu.add(newInstanceItem);
+        fileMenu.add(openFolderItem);
+        fileMenu.addSeparator();
+        fileMenu.add(exitItem);
+
+        // Edit menu (standard macOS menu)
+        JMenu editMenu = createEditMenu(menuShortcutKeyMask);
+
+        // Window menu (standard macOS menu)
+        JMenu windowMenu = createWindowMenu(menuShortcutKeyMask);
+
+        // Help menu
+        JMenu helpMenu = new JMenu("Help");
+        JMenuItem helpContentsItem = new JMenuItem("LaunchMine Help");
+        JMenuItem websiteItem = new JMenuItem("Visit Website");
+        JMenuItem checkUpdatesItem = new JMenuItem("Check for Updates...");
+
+        helpContentsItem.addActionListener(e -> showHelpDialog());
+        websiteItem.addActionListener(e -> openWebsite());
+        checkUpdatesItem.addActionListener(e -> checkForUpdates());
+
+        helpMenu.add(helpContentsItem);
+        helpMenu.add(websiteItem);
+        helpMenu.addSeparator();
+        helpMenu.add(checkUpdatesItem);
+
+        // Add all menus to menu bar
+        menuBar.add(fileMenu);
+        menuBar.add(editMenu);
+        menuBar.add(windowMenu);
+        menuBar.add(helpMenu);
+
+        return menuBar;
+    }
+
+    private JMenu createEditMenu(int menuShortcutKeyMask) {
+        JMenu editMenu = new JMenu("Edit");
+
+        JMenuItem cutItem = new JMenuItem("Cut");
+        JMenuItem copyItem = new JMenuItem("Copy");
+        JMenuItem pasteItem = new JMenuItem("Paste");
+        JMenuItem selectAllItem = new JMenuItem("Select All");
+
+        // Standard macOS edit shortcuts
+        cutItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_X, menuShortcutKeyMask
+        ));
+        copyItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_C, menuShortcutKeyMask
+        ));
+        pasteItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_V, menuShortcutKeyMask
+        ));
+        selectAllItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_A, menuShortcutKeyMask
+        ));
+
+        // Connect these to actual functionality if you have text components
+        cutItem.addActionListener(e -> {
+            // Implement cut functionality for your text fields
+            transferToClipboard("cut");
+        });
+
+        copyItem.addActionListener(e -> {
+            // Implement copy functionality
+            transferToClipboard("copy");
+        });
+
+        pasteItem.addActionListener(e -> {
+            // Implement paste functionality
+            transferFromClipboard();
+        });
+
+        selectAllItem.addActionListener(e -> {
+            // Implement select all functionality
+            selectAllText();
+        });
+
+        editMenu.add(cutItem);
+        editMenu.add(copyItem);
+        editMenu.add(pasteItem);
+        editMenu.addSeparator();
+        editMenu.add(selectAllItem);
+
+        return editMenu;
+    }
+
+    private JMenu createWindowMenu(int menuShortcutKeyMask) {
+        JMenu windowMenu = new JMenu("Window");
+
+        JMenuItem minimizeItem = new JMenuItem("Minimize");
+        JMenuItem zoomItem = new JMenuItem("Zoom");
+        JMenuItem bringAllToFrontItem = new JMenuItem("Bring All to Front");
+
+        minimizeItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_M, menuShortcutKeyMask
+        ));
+
+        minimizeItem.addActionListener(e -> {
+            if (main != null) {
+                main.setState(JFrame.ICONIFIED);
+            }
+        });
+
+        zoomItem.addActionListener(e -> {
+            if (main != null) {
+                if (main.getExtendedState() == JFrame.NORMAL) {
+                    main.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                } else {
+                    main.setExtendedState(JFrame.NORMAL);
+                }
+            }
+        });
+
+        bringAllToFrontItem.addActionListener(e -> {
+            if (main != null) {
+                main.toFront();
+                if (main.getInstances() != null && main.getInstances().isVisible()) {
+                    main.getInstances().toFront();
+                }
+            }
+        });
+
+        windowMenu.add(minimizeItem);
+        windowMenu.add(zoomItem);
+        windowMenu.addSeparator();
+        windowMenu.add(bringAllToFrontItem);
+
+        return windowMenu;
+    }
+
+    // Helper methods for edit menu actions
+    private void transferToClipboard(String action) {
+        // Get the currently focused component
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+
+        if (focusOwner instanceof JTextComponent) {
+            JTextComponent textComp = (JTextComponent) focusOwner;
+            if ("cut".equals(action)) {
+                textComp.cut();
+            } else if ("copy".equals(action)) {
+                textComp.copy();
+            }
+        }
+    }
+
+    private void transferFromClipboard() {
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        if (focusOwner instanceof JTextComponent) {
+            ((JTextComponent) focusOwner).paste();
+        }
+    }
+
+    private void selectAllText() {
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        if (focusOwner instanceof JTextComponent) {
+            ((JTextComponent) focusOwner).selectAll();
+        }
+    }
+
+    private void showHelpDialog() {
+        JOptionPane.showMessageDialog(main,
+                "<html><h2>LaunchMine Help</h2>" +
+                        "<p><b>Getting Started:</b></p>" +
+                        "<ul>" +
+                        "<li>Go to <b>File → New Instance</b> to download Minecraft versions</li>" +
+                        "<li>Select a version from the main list to launch</li>" +
+                        "<li>Click the <b>Start</b> button to launch Minecraft</li>" +
+                        "</ul>" +
+                        "<p><b>Preferences:</b></p>" +
+                        "<ul>" +
+                        "<li>Use <b>Cmd+,</b> to open Preferences (on macOS)</li>" +
+                        "<li>Set default memory allocation and window size</li>" +
+                        "</ul></html>",
+                "LaunchMine Help",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void openWebsite() {
+        try {
+            Desktop.getDesktop().browse(new URI("https://github.com/qiuerichanru/LaunchMine"));
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(main,
+                    "Could not open website: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void checkForUpdates() {
+        JOptionPane.showMessageDialog(main,
+                "Update check functionality coming soon!\n\n" +
+                        "Currently running version: " + main.getVersion(),
+                "Check for Updates",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private JMenuBar createStandardMenuBar() {
+        // Your existing menu bar code for Windows/Linux
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBackground(PRIMARY_COLOR);
         menuBar.setBorder(new MatteBorder(0, 0, 2, 0, SECONDARY_COLOR));
@@ -50,16 +397,9 @@ public class UI {
         JMenuItem aboutItem = createStyledMenuItem("About", "icons/info.png");
 
         instancesItem.addActionListener(e -> main.getInstances().visible());
-        exitItem.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(main,
-                    "Are you sure you want to exit?", "Exit LaunchMine",
-                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            if (confirm == JOptionPane.YES_OPTION) {
-                System.exit(0);
-            }
-        });
+        exitItem.addActionListener(e -> System.exit(0));
         optionsItem.addActionListener(e -> showOptionsDialog());
-        aboutItem.addActionListener(e -> showAboutDialog());
+        aboutItem.addActionListener(e -> new AboutDialog(main));
 
         fileMenu.add(instancesItem);
         fileMenu.add(new JSeparator());
@@ -176,8 +516,8 @@ public class UI {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         contentPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // Instance list
-        List<String> instances = main.getAvailableInstances();
+        // Instance list - Get instances from Main
+        List<String> instances = main.getAvailableInstances();  // Get from Main
         DefaultListModel<String> listModel = new DefaultListModel<>();
 
         if (!instances.isEmpty()) {
@@ -186,6 +526,8 @@ public class UI {
             }
         } else {
             listModel.addElement("No instances found");
+            listModel.addElement("");
+            listModel.addElement("Go to File → Instances to download versions");
         }
 
         instanceList = new JList<>(listModel);
@@ -203,6 +545,7 @@ public class UI {
                         index, isSelected, cellHasFocus);
 
                 String displayName = (String) value;
+                List<String> instances = main.getAvailableInstances();  // Get fresh list
 
                 // Style based on whether it's an actual instance or placeholder
                 if (instances.isEmpty() || displayName.equals("No instances found")) {
@@ -214,70 +557,73 @@ public class UI {
                     Main.InstanceInfo instanceInfo = main.getInstanceInfo(displayName);
 
                     if (instanceInfo != null) {
-                        // Show different icons based on version type
-                        Color typeColor;
-                        switch (instanceInfo.type) {
-                            case "release":
-                                typeColor = ACCENT_COLOR;
-                                label.setIcon(new CircleIcon(8, typeColor));
-                                break;
-                            case "snapshot":
-                                typeColor = new Color(241, 196, 15); // Yellow
-                                label.setIcon(new TriangleIcon(8, typeColor));
-                                break;
-                            case "old_beta":
-                                typeColor = new Color(155, 89, 182); // Purple
-                                label.setIcon(new SquareIcon(8, typeColor));
-                                break;
-                            case "old_alpha":
-                                typeColor = new Color(230, 126, 34); // Orange
-                                label.setIcon(new DiamondIcon(8, typeColor));
-                                break;
-                            default:
-                                typeColor = SECONDARY_COLOR;
-                                label.setIcon(new CircleIcon(8, typeColor));
+                            // Show different icons based on version type
+                            Color typeColor;
+                            switch (instanceInfo.type) {
+                                case "release":
+                                    typeColor = ACCENT_COLOR;
+                                    label.setIcon(new CircleIcon(8, typeColor));
+                                    break;
+                                case "snapshot":
+                                    typeColor = new Color(241, 196, 15); // Yellow
+                                    label.setIcon(new TriangleIcon(8, typeColor));
+                                    break;
+                                case "old_beta":
+                                    typeColor = new Color(155, 89, 182); // Purple
+                                    label.setIcon(new SquareIcon(8, typeColor));
+                                    break;
+                                case "old_alpha":
+                                    typeColor = new Color(230, 126, 34); // Orange
+                                    label.setIcon(new DiamondIcon(8, typeColor));
+                                    break;
+                                default:
+                                    typeColor = SECONDARY_COLOR;
+                                    label.setIcon(new CircleIcon(8, typeColor));
+                            }
+
+                            // Show status indicator
+                            String status = instanceInfo.getStatus();
+                            Color statusColor = instanceInfo.hasJar ? new Color(46, 204, 113) : new Color(231, 76, 60);
+
+                            label.setText("<html><b>" + displayName + "</b><br>" +
+                                    "<font size='2' color='" + String.format("#%02x%02x%02x",
+                                    statusColor.getRed(), statusColor.getGreen(), statusColor.getBlue()) +
+                                    "'>" + status + "</font></html>");
+                        } else {
+                            label.setText("  " + displayName);
+                            label.setIcon(new CircleIcon(8, SECONDARY_COLOR));
                         }
 
-                        // Show status indicator
-                        String status = instanceInfo.getStatus();
-                        Color statusColor = instanceInfo.hasJar ? new Color(46, 204, 113) : new Color(231, 76, 60);
-
-                        label.setText("<html><b>" + displayName + "</b><br>" +
-                                "<font size='2' color='" + String.format("#%02x%02x%02x",
-                                statusColor.getRed(), statusColor.getGreen(), statusColor.getBlue()) +
-                                "'>" + status + "</font></html>");
-                    } else {
-                        label.setText("  " + displayName);
-                        label.setIcon(new CircleIcon(8, SECONDARY_COLOR));
+                        label.setForeground(TEXT_COLOR);
+                        label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                        label.setIconTextGap(10);
                     }
 
-                    label.setForeground(TEXT_COLOR);
-                    label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-                    label.setIconTextGap(10);
-                }
+                    // Custom selection background
+                    if (isSelected && !instances.isEmpty()) {
+                        label.setBackground(new Color(236, 240, 241));
+                        label.setBorder(BorderFactory.createCompoundBorder(
+                                new LineBorder(SECONDARY_COLOR, 1),
+                                new EmptyBorder(2, 2, 2, 2)
+                        ));
+                    } else {
+                        label.setBackground(index % 2 == 0 ? Color.WHITE : new Color(250, 250, 250));
+                        label.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+                    }
 
-                // Custom selection background
-                if (isSelected && !instances.isEmpty()) {
-                    label.setBackground(new Color(236, 240, 241));
-                    label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(SECONDARY_COLOR, 1),
-                            new EmptyBorder(2, 2, 2, 2)
-                    ));
-                } else {
-                    label.setBackground(index % 2 == 0 ? Color.WHITE : new Color(250, 250, 250));
-                    label.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+                    return label;
                 }
-
-                return label;
-            }
-        });
+            });
 
         // Add selection listener
         instanceList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && !instances.isEmpty()) {
-                String selectedInstance = instanceList.getSelectedValue();
-                if (selectedInstance != null && !selectedInstance.equals("No instances found")) {
-                    main.setInstanceName(selectedInstance);
+            if (!e.getValueIsAdjusting()) {
+                List<String> currentInstances = main.getAvailableInstances();  // Get fresh list
+                if (!currentInstances.isEmpty()) {
+                    String selectedInstance = instanceList.getSelectedValue();
+                    if (selectedInstance != null && !selectedInstance.equals("No instances found")) {
+                        main.setInstanceName(selectedInstance);
+                    }
                 }
             }
         });
@@ -294,7 +640,9 @@ public class UI {
 
         JButton createInstanceBtn = createStyledButton("+ Create New Instance", ACCENT_COLOR);
         createInstanceBtn.addActionListener(e -> {
-            main.getInstances().visible();
+            if (main.getInstances() != null) {
+                main.getInstances().setVisible(true);
+            }
         });
 
         JButton refreshBtn = createStyledButton("⟳ Refresh", SECONDARY_COLOR);
@@ -305,17 +653,20 @@ public class UI {
             DefaultListModel<String> model = (DefaultListModel<String>) instanceList.getModel();
             model.clear();
 
-            List<String> updatedInstances = main.getAvailableInstances();
-            if (!updatedInstances.isEmpty()) {
-                for (String instance : updatedInstances) {
+            List<String> refreshedInstances = main.getAvailableInstances();
+            if (!refreshedInstances.isEmpty()) {
+                for (String instance : refreshedInstances) {
                     model.addElement(instance);
                 }
             } else {
                 model.addElement("No instances found");
             }
 
+            instanceList.revalidate();
+            instanceList.repaint();
+
             JOptionPane.showMessageDialog(main,
-                    "Instance list refreshed! Found " + updatedInstances.size() + " instance(s)",
+                    "Instance list refreshed! Found " + refreshedInstances.size() + " instance(s)",
                     "Refresh Complete",
                     JOptionPane.INFORMATION_MESSAGE);
         });
@@ -326,6 +677,91 @@ public class UI {
 
         mainPanel.add(contentPanel, BorderLayout.CENTER);
         return mainPanel;
+    }
+
+    public void refreshInstanceListDisplay() {
+        if (instanceList != null) {
+            DefaultListModel<String> model = (DefaultListModel<String>) instanceList.getModel();
+            model.clear();
+
+            List<String> instances = main.getAvailableInstances();
+            if (!instances.isEmpty()) {
+                for (String instance : instances) {
+                    model.addElement(instance);
+                }
+            } else {
+                model.addElement("No instances found");
+                model.addElement("");
+                model.addElement("Go to File → Instances to download versions");
+            }
+
+            instanceList.revalidate();
+            instanceList.repaint();
+        }
+    }
+
+    public void refreshInstanceList() {
+        if (instanceList != null) {
+            DefaultListModel<String> model = (DefaultListModel<String>) instanceList.getModel();
+            model.clear();
+
+            List<String> instances = main.getAvailableInstances();
+            if (instances.isEmpty()) {
+                model.addElement("No Minecraft instances found");
+                model.addElement("");
+                model.addElement("Go to File → Instances to download versions");
+            } else {
+                for (String instance : instances) {
+                    model.addElement(instance);
+                }
+            }
+
+            instanceList.revalidate();
+            instanceList.repaint();
+
+            JOptionPane.showMessageDialog(main,
+                    "Refreshed! Found " + instances.size() + " instance(s)",
+                    "Refresh Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void loadInstancesAsync(DefaultListModel<String> listModel) {
+        new Thread(() -> {
+            try {
+                // Wait a moment for Main to finish initialization
+                Thread.sleep(500);
+
+                // Get instances from Main
+                List<String> instances = main.getAvailableInstances();
+
+                SwingUtilities.invokeLater(() -> {
+                    listModel.clear();
+
+                    if (instances.isEmpty()) {
+                        listModel.addElement("No Minecraft instances found");
+                        listModel.addElement("");
+                        listModel.addElement("Go to File → Instances to download versions");
+                    } else {
+                        for (String instance : instances) {
+                            listModel.addElement(instance);
+                        }
+                    }
+
+                    if (instanceList != null) {
+                        instanceList.revalidate();
+                        instanceList.repaint();
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    listModel.clear();
+                    listModel.addElement("Error loading instances: " + e.getMessage());
+                });
+            }
+        }).start();
     }
 
     public JPanel createButtonPanel(String instanceName) {
@@ -495,9 +931,9 @@ public class UI {
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE);
 
-        if (result != JOptionPane.OK_OPTION) {
-            return;
-        }
+        //if (result != JOptionPane.OK_OPTION) {
+        //    return;
+        //}
 
         // Launch in a separate thread to avoid freezing UI
         new Thread(() -> {
@@ -869,6 +1305,10 @@ public class UI {
         return mainPanel;
     }
 
+    public void showAboutDialog() {
+        new AboutDialog(main);
+    }
+
     // Custom cell renderer for version list
     private class VersionListCellRenderer extends DefaultListCellRenderer {
         @Override
@@ -959,48 +1399,10 @@ public class UI {
         }
     }
 
-    private void showOptionsDialog() {
-        JPanel optionsPanel = new JPanel(new GridLayout(0, 2, 10, 10));
-        optionsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        optionsPanel.add(new JLabel("Memory (MB):"));
-        JSpinner memorySpinner = new JSpinner(new SpinnerNumberModel(2048, 1024, 16384, 256));
-        optionsPanel.add(memorySpinner);
-
-        optionsPanel.add(new JLabel("Window Width:"));
-        JTextField widthField = new JTextField("854");
-        optionsPanel.add(widthField);
-
-        optionsPanel.add(new JLabel("Window Height:"));
-        JTextField heightField = new JTextField("480");
-        optionsPanel.add(heightField);
-
-        optionsPanel.add(new JLabel("Java Path:"));
-        JTextField javaPathField = new JTextField(System.getProperty("java.home"));
-        optionsPanel.add(javaPathField);
-
-        int result = JOptionPane.showConfirmDialog(main, optionsPanel,
-                "LaunchMine Options", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-        if (result == JOptionPane.OK_OPTION) {
-            // Save options here
-            JOptionPane.showMessageDialog(main,
-                    "Options saved!", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }
+    public void showOptionsDialog() {
+        new OptionsDialog(main);
     }
 
-    private void showAboutDialog() {
-        String aboutText = "<html><center>" +
-                "<h2>LaunchMine</h2>" +
-                "<p>Version 1.0.0</p>" +
-                "<p>A custom Minecraft launcher built with Java Swing</p>" +
-                "<br>" +
-                "<p><small>Created by Eric</small></p>" +
-                "</center></html>";
-
-        JOptionPane.showMessageDialog(main, aboutText,
-                "About LaunchMine", JOptionPane.INFORMATION_MESSAGE);
-    }
     private static class TriangleIcon implements Icon {
         private final int size;
         private final Color color;

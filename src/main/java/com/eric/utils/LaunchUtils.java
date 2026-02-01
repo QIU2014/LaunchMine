@@ -274,12 +274,11 @@ public class LaunchUtils {
             }
 
             // 下载库文件
-            for (JsonNode library : libraries) {
+            for (JsonNode library :libraries) {
                 // Check rules
                 if (library.has("rules") && !shouldIncludeLibrary(library.get("rules"))) {
                     continue;
                 }
-
                 if (library.has("downloads") && library.get("downloads").has("artifact")) {
                     currentLibrary++;
                     JsonNode artifact = library.get("downloads").get("artifact");
@@ -291,7 +290,7 @@ public class LaunchUtils {
                     String filePath = "./.minecraft/libraries/" + path;
                     validateOrDownloadFile(url, filePath, sha1, size,
                             String.format("Library (%d/%d): %s", currentLibrary, totalLibraries, library.get("name").asText()));
-                }
+                    }
 
                 // Handle natives
                 if (library.has("downloads") && library.get("downloads").has("classifiers")) {
@@ -813,7 +812,9 @@ public class LaunchUtils {
                 .replace("${classpath}", buildClasspath(versionJson, versionId))
                 .replace("${natives_directory}", String.format("./.minecraft/versions/%s/natives", versionId))
                 .replace("${launcher_name}", "LaunchMine")
-                .replace("${launcher_version}", Main.VERSION);
+                .replace("${launcher_version}", Main.VERSION)
+                .replace("${quickPlayMultiplayer}","");
+
 
         // Handle any remaining ${variable} patterns
         result = result.replaceAll("\\$\\{[^}]*\\}", "");
@@ -995,7 +996,17 @@ public class LaunchUtils {
             }
 
             JsonNode versionJson = objectMapper.readTree(versionJsonFile);
-            validateAndDownloadFiles(versionJson, versionId);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        validateAndDownloadFiles(versionJson, versionId);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+
 
         } catch (Exception e) {
             System.err.println("Error validating version " + versionId + ": " + e.getMessage());

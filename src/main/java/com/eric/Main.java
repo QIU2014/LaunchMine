@@ -1,10 +1,18 @@
 package com.eric;
 
+import com.eric.ui.AboutDialog;
+import com.eric.ui.OptionsDialog;
 import com.eric.utils.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.desktop.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,11 +20,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The main class of LaunchMine and also handler of the creation of Main frame
+ */
 public class Main extends JFrame {
     private UI ui;
     private NetUtils net;
     private JsonUtils json;
     private Instances instances;
+    private InstanceUtils instanceUtils;
+    private Timer memoryMonitor;
+    private PreferencesUtils preferencesHandler;
+    private MacOSAppListener macOSListener;
+    private static Main main;
     public static final int BUTTON_WIDTH = 120;
     public static final int BUTTON_HEIGHT = 40;
     public static final String VERSION = "1.0.0";
@@ -28,26 +44,44 @@ public class Main extends JFrame {
         // Initialize utilities first
         this.net = new NetUtils();
         this.json = new JsonUtils();
+        this.preferencesHandler = new PreferencesUtils();
+
+        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+            setupMacOSIntegration();
+        }
 
         // Download version manifest if it doesn't exist
         downloadVersionManifest();
 
-        // Validate all installed versions on startup
-        validateAllVersionsOnStartup();
-
-        // Scan for existing instances in versions folder
+        // Scan for existing instances FIRST
         scanForInstancesInVersions();
 
-        // Then create UI components
+        // Then create UI components (instances are already loaded)
         this.ui = new UI(this);
-        this.instances = new Instances(this, ui);
+        // this.instances = new Instances(this, this, ui);
 
         LaunchUtils.setParentFrame(this);
+
+        // Set up window
         setTitle("LaunchMine");
         setSize(1200, 700);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setResizable(false);
+        setIconImage(createAppIcon());
+
+        Desktop desktop = Desktop.getDesktop();
+        desktop.setAboutHandler(e -> new AboutDialog(main));
+        desktop.setPreferencesHandler(e -> new OptionsDialog(main));
+        desktop.setDefaultMenuBar(ui.createMenuBar());
+        desktop.setQuitHandler((e, response) -> quitApplication());
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                quitApplication();
+            }
+        });
 
         Container container = getContentPane();
         container.setLayout(new BorderLayout(20, 0));
@@ -60,8 +94,232 @@ public class Main extends JFrame {
         JPanel buttonPanel = ui.createButtonPanel(instanceName);
         container.add(buttonPanel, BorderLayout.EAST);
 
-        setJMenuBar(ui.createMenuBar());
+        // Validate versions in background AFTER UI is shown
+        SwingUtilities.invokeLater(() -> {
+            validateAllVersionsOnStartup();
+        });
     }
+
+    private void quitApplication() {
+        int confirm = JOptionPane.showConfirmDialog(main,
+                "Are you sure you want to exit LaunchMine?",
+                "Exit LaunchMine",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (confirm == JOptionPane.YES_OPTION) {
+            System.exit(0);
+        }
+    }
+
+    private void setupMacOSIntegration() {
+        if (!System.getProperty("os.name").toLowerCase().contains("mac")) {
+            return;
+        }
+
+        // Enable system menu bar (standard macOS behavior)
+        System.setProperty("apple.laf.useScreenMenuBar", "true");
+        System.setProperty("apple.awt.application.name", "LaunchMine");
+        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "LaunchMine");
+        System.setProperty("apple.awt.textantialiasing", "true");
+        setupMacOSShortcuts();
+    }
+
+    private void setupMacOSShortcuts() {
+        // Set up AFTER UI is initialized
+        SwingUtilities.invokeLater(() -> {
+            // About shortcut: Cmd+Shift+A (standard for custom About in Help menu)
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_A,
+                            Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx() | KeyEvent.SHIFT_DOWN_MASK),
+                    "openAbout");
+
+            getRootPane().getActionMap().put("openAbout", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (ui != null) {
+                        ui.showAboutDialog();
+                    }
+                }
+            });
+
+            // Preferences shortcut: Cmd+, (standard macOS shortcut)
+            getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_COMMA,
+                            Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()),
+                    "openPreferences");
+
+            getRootPane().getActionMap().put("openPreferences", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (ui != null) {
+                        ui.showOptionsDialog();
+                    }
+                }
+            });
+        });
+    }
+
+    private Image createAppIcon() {
+        BufferedImage icon = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = icon.createGraphics();
+
+        // Draw background
+        GradientPaint gradient = new GradientPaint(0, 0, new Color(41, 128, 185),
+                256, 256, new Color(52, 152, 219));
+        g2d.setPaint(gradient);
+        g2d.fillRoundRect(0, 0, 256, 256, 50, 50);
+
+        // Draw "LM" text
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, 100));
+        FontMetrics fm = g2d.getFontMetrics();
+        String text = "LM";
+        int x = (256 - fm.stringWidth(text)) / 2;
+        int y = (256 - fm.getHeight()) / 2 + fm.getAscent();
+        g2d.drawString(text, x, y);
+
+        g2d.dispose();
+        return icon;
+    }
+
+    private void setupMacOSHandlers() {
+        // The About menu item in the macOS application menu
+        // will trigger this when clicked
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowActivated(WindowEvent e) {}
+        });
+
+        // Set up global key listener for Cmd+, (Preferences)
+        getRootPane().registerKeyboardAction(
+                e -> ui.showOptionsDialog(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_COMMA,
+                        Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set up global key listener for Cmd+Q (Quit)
+        getRootPane().registerKeyboardAction(
+                e -> {
+                    int confirm = JOptionPane.showConfirmDialog(this,
+                            "Are you sure you want to quit LaunchMine?",
+                            "Quit LaunchMine",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE);
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        System.exit(0);
+                    }
+                },
+                KeyStroke.getKeyStroke(KeyEvent.VK_Q,
+                        Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+    }
+
+    public void refreshMenuBar() {
+        SwingUtilities.invokeLater(() -> {
+            setJMenuBar(ui.createMenuBar());
+            revalidate();
+            repaint();
+        });
+    }
+
+    private void startMemoryMonitoring() {
+        memoryMonitor = new Timer(30000, e -> checkMemoryUsage()); // Every 30 seconds
+        memoryMonitor.start();
+    }
+
+    private void checkMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        long maxMemory = runtime.maxMemory();
+
+        double usagePercentage = (double) usedMemory / maxMemory * 100;
+
+        if (usagePercentage > 80) {
+            System.out.println("High memory usage: " + usagePercentage + "%");
+            onLowMemory();
+        }
+    }
+
+    public void cleanup() {
+        if (instanceUtils.getVersionsCache() != null) {
+            instanceUtils.getVersionsCache().clear();
+            InstanceUtils.setVersionsCache(null);
+        }
+
+        // Clear other caches
+        availableInstances.clear();
+
+        // Help garbage collection
+        System.gc();
+    }
+
+    // Call this when switching views or on low memory
+    public void onLowMemory() {
+        cleanup();
+    }
+
+    private void initializeBackgroundTasks() {
+        // Initialize utilities
+        this.net = new NetUtils();
+        this.json = new JsonUtils();
+
+        // Download version manifest in background
+        new Thread(() -> {
+            downloadVersionManifest();
+            scanForInstancesInVersions();
+            validateAllVersionsOnStartup();
+
+            SwingUtilities.invokeLater(() -> {
+                if (ui != null) {
+                    // 更新实例列表
+                    refreshInstances();
+                }
+            });
+        }).start();
+    }
+
+    public void refreshUIInstanceList() {
+        if (ui != null && ui.instanceList != null) {
+            SwingUtilities.invokeLater(() -> {
+                DefaultListModel<String> model = (DefaultListModel<String>) ui.instanceList.getModel();
+                model.clear();
+
+                List<String> instances = getAvailableInstances();
+                if (!instances.isEmpty()) {
+                    for (String instance : instances) {
+                        model.addElement(instance);
+                    }
+                } else {
+                    model.addElement("No instances found");
+                }
+
+                ui.instanceList.revalidate();
+                ui.instanceList.repaint();
+            });
+        }
+    }
+
+    private void buildUIComponents() {
+        Container container = getContentPane();
+
+        // Add main content panel
+        JPanel mainContent = ui.createMainContentPanel();
+        container.add(mainContent, BorderLayout.CENTER);
+
+        // Add button panel
+        JPanel buttonPanel = ui.createButtonPanel(instanceName);
+        container.add(buttonPanel, BorderLayout.EAST);
+
+        // Add menu bar
+        setJMenuBar(ui.createMenuBar());
+
+        // Refresh the UI
+        revalidate();
+        repaint();
+    }
+
 
     /**
      * Download the version manifest on startup if it doesn't exist
@@ -101,7 +359,7 @@ public class Main extends JFrame {
 
         if (!minecraftDir.exists()) {
             minecraftDir.mkdirs();
-            System.out.println("Created .minecraft directory");
+            System.out.println("DEBUG: Created .minecraft directory");
             return;
         }
 
@@ -109,22 +367,25 @@ public class Main extends JFrame {
         File versionsDir = new File(minecraftDir, "versions");
         if (!versionsDir.exists()) {
             versionsDir.mkdirs();
-            System.out.println("Created versions directory");
+            System.out.println("DEBUG: Created versions directory");
             return;
         }
 
-        System.out.println("Scanning for instances in: " + versionsDir.getAbsolutePath());
+        System.out.println("DEBUG: Scanning for instances in: " + versionsDir.getAbsolutePath());
 
         // List all directories in versions folder
         File[] versionFolders = versionsDir.listFiles(File::isDirectory);
         if (versionFolders == null || versionFolders.length == 0) {
-            System.out.println("No version folders found");
+            System.out.println("DEBUG: No version folders found");
             return;
         }
+
+        System.out.println("DEBUG: Found " + versionFolders.length + " version folders");
 
         int validInstances = 0;
         for (File versionFolder : versionFolders) {
             String versionId = versionFolder.getName();
+            System.out.println("DEBUG: Checking folder: " + versionId);
 
             // Check for version JSON file
             File versionJsonFile = new File(versionFolder, versionId + ".json");
@@ -183,6 +444,8 @@ public class Main extends JFrame {
         }
 
         System.out.println("Found " + validInstances + " valid instance(s)");
+
+        refreshUIInstanceList();
     }
 
     /**
@@ -276,7 +539,12 @@ public class Main extends JFrame {
     public JsonUtils getJsonUtils() { return json; }
     public void setJsonUtils(JsonUtils json) { this.json = json; }
 
-    public Instances getInstances() { return instances; }
+    public Instances getInstances() {
+        if (instances == null) {
+            instances = new Instances(this, ui);
+        }
+        return instances;
+    }
 
     public int getButtonWidth() { return BUTTON_WIDTH; }
     public int getButtonHeight() { return BUTTON_HEIGHT; }
@@ -289,10 +557,42 @@ public class Main extends JFrame {
         }
     }
 
-    public static void main(String[] args) {
+    public String getVersion() { return VERSION; }
+
+    public PreferencesUtils getPreferencesHandler() { return preferencesHandler; }
+
+    static void main(String[] args) {
+        // Set macOS-specific system properties BEFORE any UI is created
+        System.setProperty("apple.awt.application.name", "LaunchMine");
+        System.setProperty("apple.laf.useScreenMenuBar", "true");
+        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "LaunchMine");
+
+        // This is the key one for suppressing the CapsLock warning:
+        System.setProperty("apple.awt.textantialiasing", "true");
+
+        System.setProperty("apple.awt.textantialiasing", "true");
+        System.setProperty("apple.awt.graphics.UseQuartz", "true");
+
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+
+                // Additional macOS-specific UI settings
+                if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                    // Force the menu bar to appear
+                    UIManager.put("MenuBarUI", "javax.swing.plaf.metal.MetalMenuBarUI");
+                }
+
+                main.setJMenuBar(main.ui.createMenuBar());
+                main.revalidate();
+
+                // Also try this after a delay
+                Timer timer = new Timer(1000, e -> {
+                    main.setJMenuBar(main.ui.createMenuBar());
+                    main.revalidate();
+                });
+                timer.setRepeats(false);
+                timer.start();
             } catch (Exception e) {
                 e.printStackTrace();
             }
