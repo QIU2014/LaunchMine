@@ -5,6 +5,7 @@ target/
 .kotlin
 .minecraft
 version_manifest_v2.json
+logs/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
