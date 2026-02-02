@@ -12,9 +12,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +36,8 @@ public class Main extends JFrame {
     private static Main main;
     public static final int BUTTON_WIDTH = 120;
     public static final int BUTTON_HEIGHT = 40;
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "1.0.1";
+    private final String imagePath = "/icon.png";
     private static String instanceName = null;
     private Map<String, InstanceInfo> availableInstances = new HashMap<>();
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -45,6 +47,12 @@ public class Main extends JFrame {
         this.net = new NetUtils();
         this.json = new JsonUtils();
         this.preferencesHandler = new PreferencesUtils();
+
+        URL imageURL = getClass().getResource(imagePath);
+        if (imageURL != null) {
+            ImageIcon icon = new ImageIcon(imageURL);
+            setIconImage(icon.getImage());
+        }
 
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             setupMacOSIntegration();
@@ -68,7 +76,6 @@ public class Main extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setResizable(false);
-        setIconImage(createAppIcon());
 
         try {
             Desktop desktop = Desktop.getDesktop();
@@ -234,7 +241,7 @@ public class Main extends JFrame {
         });
     }
 
-    private Image createAppIcon() {
+    /*private Image createAppIcon() {
         BufferedImage icon = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = icon.createGraphics();
 
@@ -255,7 +262,7 @@ public class Main extends JFrame {
 
         g2d.dispose();
         return icon;
-    }
+    }*/
 
     private void setupMacOSHandlers() {
         // The About menu item in the macOS application menu
