@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.eric</groupId>
+    <groupId>io.github.qiu2014</groupId>
     <artifactId>launchmine</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -29,7 +29,7 @@
                 <configuration>
                     <transformers>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                            <mainClass>com.eric.Main</mainClass>
+                            <mainClass>io.github.qiu2014.launchmine.Main</mainClass>
                         </transformer>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer">
                         </transformer>
@@ -53,7 +53,7 @@
                             <jar>target/${project.build.finalName}.jar</jar>
                             <errTitle>LaunchMine</errTitle>
                             <classPath>
-                                <mainClass>com.eric.Main</mainClass>
+                                <mainClass>io.github.qiu2014.launchmine.Main</mainClass>
                             </classPath>
                             <jre>
                                 <minVersion>21.0.0</minVersion>
@@ -106,6 +106,16 @@
         <artifactId>annotations</artifactId>
         <version>26.0.2</version>
         <scope>compile</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>2.12.4</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>2.12.4</version>
     </dependency>
 </dependencies>
 

@@ -6,6 +6,8 @@ target/
 .minecraft
 version_manifest_v2.json
 logs/
+log/
+options.json
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

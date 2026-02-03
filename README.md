@@ -1,6 +1,10 @@
 # LaunchMine - Minecraft Launcher
 
 [![Maven Build](https://github.com/QIU2014/LaunchMine/actions/workflows/maven.yml/badge.svg)](https://github.com/QIU2014/LaunchMine/actions/workflows/maven.yml)
+![GitHub License](https://img.shields.io/github/license/QIU2014/LaunchMine)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/QIU2014/LaunchMine/total)
+![GitHub Release](https://img.shields.io/github/v/release/qiu2014/launchmine)
+
 
 ## Overview
 LaunchMine is a modern, feature-rich Minecraft launcher built with Java Swing that provides a clean and intuitive interface for managing and launching Minecraft instances.

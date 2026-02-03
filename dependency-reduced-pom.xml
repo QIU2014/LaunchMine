@@ -20,7 +20,7 @@
         <configuration>
           <transformers>
             <transformer>
-              <mainClass>com.eric.Main</mainClass>
+              <mainClass>io.github.qiu2014.launchmine.Main</mainClass>
             </transformer>
             <transformer />
           </transformers>
@@ -43,7 +43,7 @@
               <jar>target/${project.build.finalName}.jar</jar>
               <errTitle>LaunchMine</errTitle>
               <classPath>
-                <mainClass>com.eric.Main</mainClass>
+                <mainClass>io.github.qiu2014.launchmine.Main</mainClass>
               </classPath>
               <jre>
                 <minVersion>21.0.0</minVersion>
