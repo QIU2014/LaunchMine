@@ -2,11 +2,10 @@ package io.github.qiu2014.launchmine;
 
 import io.github.qiu2014.launchmine.ui.AboutDialog;
 import io.github.qiu2014.launchmine.ui.OptionsDialog;
-import com.eric.utils.*;
+import io.github.qiu2014.launchmine.utils.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.qiu2014.launchmine.utils.*;
-import io.github.qiu2014.utils.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
