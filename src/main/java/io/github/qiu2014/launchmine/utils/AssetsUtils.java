@@ -199,7 +199,7 @@ public class AssetsUtils {
             try {
                 NetUtils.downloadArtifact(url, clientPath);
             } catch (Exception e) {
-                assetsLogger.error(e.getStackTrace());
+                e.printStackTrace();
             }
             System.out.println("Client JAR downloaded to: " + clientPath);
         }
@@ -216,7 +216,7 @@ public class AssetsUtils {
             try {
                 NetUtils.downloadArtifact(url, serverPath);
             } catch (Exception e) {
-                assetsLogger.error(e.getStackTrace());
+                e.printStackTrace();
             }
             System.out.println("Server JAR downloaded to: " + serverPath);
         }
@@ -257,7 +257,7 @@ public class AssetsUtils {
             try {
                 NetUtils.downloadArtifact(assetIndexUrl, assetIndexPath);
             } catch (Exception e) {
-                assetsLogger.error(e.getStackTrace());
+                assetsLogger.error(e.getMessage());
             }
             System.out.println("Note: Asset index downloaded. To download individual assets, ");
             System.out.println("      you would need to parse the asset index JSON and download each file.");
@@ -350,7 +350,7 @@ public class AssetsUtils {
         try {
             NetUtils.downloadArtifact(task.url, task.outputPath);
         } catch (Exception e) {
-            assetsLogger.error(e.getStackTrace());
+            assetsLogger.error(e.getMessage());
         }
         assetsLogger.info("Downloaded: {}", task.outputPath);
     }

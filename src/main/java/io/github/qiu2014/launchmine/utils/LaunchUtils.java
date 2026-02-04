@@ -1002,7 +1002,7 @@ public class LaunchUtils {
                     try {
                         validateAndDownloadFiles(versionJson, versionId);
                     } catch (Exception e) {
-                        launchUtilsLogger.error(e.getStackTrace());
+                        launchUtilsLogger.error(e.getMessage());
                     }
                 }
             }).start();

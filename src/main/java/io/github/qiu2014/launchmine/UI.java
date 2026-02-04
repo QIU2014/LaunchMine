@@ -1380,7 +1380,7 @@ public class UI {
         try {
             new OptionsDialog(main);
         } catch (IOException e) {
-            uiLogger.fatal(e.getStackTrace());
+            e.printStackTrace();
         }
     }
 

@@ -15,6 +15,7 @@ public class PreferencesUtils {
     private ObjectMapper objectMapper = new ObjectMapper();
     private ObjectNode rootNode = objectMapper.createObjectNode();
     private ObjectNode minecraftNode = objectMapper.createObjectNode();
+    private File optionsFile = new File("options.json");
 
     private int memory;
     private int minecraftWidth;
@@ -53,16 +54,33 @@ public class PreferencesUtils {
      * @throws IOException
      */
     public void savePreferences(int memory, int width,
-                                 int height, boolean autoUpdateCheck,
-                                 String javaPath) throws IOException {
+                                int height, boolean autoUpdateCheck,
+                                String javaPath) throws IOException {
+
+        // 删除旧文件
+        if (optionsFile.exists()) {
+            optionsFile.delete();
+        }
+
+        // 创建新的配置
         rootNode.put("memory", memory);
         rootNode.put("autoUpdateCheck", autoUpdateCheck);
         rootNode.put("width", width);
         rootNode.put("height", height);
         rootNode.put("javaPath", javaPath);
-        objectMapper.writerWithDefaultPrettyPrinter().writeValue(new File("options.json"), rootNode);
-        JOptionPane.showMessageDialog(main, "Preferences saved!", "Success",
-                JOptionPane.INFORMATION_MESSAGE);
+
+        // 写入文件
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(optionsFile, rootNode);
+
+        // 重新加载设置到内存
+        loadSettings();
+
+        if (main != null) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(main, "Preferences saved!", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+            });
+        }
     }
 
     private void loadSettings() throws IOException {

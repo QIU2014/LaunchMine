@@ -35,7 +35,7 @@ public class Main extends JFrame {
     private Timer memoryMonitor;
     private PreferencesUtils preferencesHandler;
     private MacOSAppListener macOSListener;
-    private Logger mainLogger = LogManager.getLogger();
+    private final Logger mainLogger = LogManager.getLogger();
     private static Main main;
     public static final int BUTTON_WIDTH = 120;
     public static final int BUTTON_HEIGHT = 40;
@@ -45,14 +45,14 @@ public class Main extends JFrame {
     private Map<String, InstanceInfo> availableInstances = new HashMap<>();
     private ObjectMapper objectMapper = new ObjectMapper();
 
-    public Main(NetUtils netUtils, JsonUtils jsonUtils) {
+    public Main() {
         // Initialize utilities first
-        this.net = netUtils;
-        this.json = jsonUtils;
+        this.net = new NetUtils();
+        this.json = new JsonUtils();
         try {
             this.preferencesHandler = new PreferencesUtils();
         } catch (IOException e) {
-            mainLogger.error(e.getStackTrace());
+            e.printStackTrace();
         }
 
         URL imageURL = getClass().getResource(imagePath);
@@ -91,7 +91,7 @@ public class Main extends JFrame {
                 try {
                     new OptionsDialog(main);
                 } catch (IOException ex) {
-                    mainLogger.error(ex.getStackTrace());
+                    ex.printStackTrace();
                 }
             });
             desktop.setDefaultMenuBar(ui.createMenuBar());
@@ -623,6 +623,8 @@ public class Main extends JFrame {
     public int getButtonWidth() { return BUTTON_WIDTH; }
     public int getButtonHeight() { return BUTTON_HEIGHT; }
 
+    public Logger getMainLogger() { return mainLogger; }
+
     public String getInstanceName() { return instanceName; }
     public void setInstanceName(String instanceName) {
         Main.instanceName = instanceName;
@@ -636,6 +638,7 @@ public class Main extends JFrame {
     public PreferencesUtils getPreferencesHandler() { return preferencesHandler; }
 
     static void main(String[] args) {
+        Logger logger = LogManager.getLogger();
         boolean isMacOS = System.getProperty("os.name").toLowerCase().contains("mac");
 
         if (isMacOS) {
@@ -656,7 +659,7 @@ public class Main extends JFrame {
                     UIManager.put("MenuBarUI", "javax.swing.plaf.metal.MetalMenuBarUI");
                 }
 
-                main = new Main(main.net, main.json);
+                main = new Main();
                 main.setVisible(true);
 
                 // Set menu bar after window is created
@@ -664,7 +667,7 @@ public class Main extends JFrame {
                 main.revalidate();
 
             } catch (Exception e) {
-                main.mainLogger.error(e.getStackTrace());
+                e.printStackTrace();
                 JOptionPane.showMessageDialog(null,
                         "Failed to start LaunchMine: " + e.getMessage(),
                         "Startup Error",

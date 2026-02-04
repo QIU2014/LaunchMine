@@ -1,12 +1,12 @@
 package io.github.qiu2014.launchmine.ui;
 
+import io.github.qiu2014.launchmine.Main;
+import io.github.qiu2014.launchmine.utils.PreferencesUtils;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.io.IOException;
-
-import io.github.qiu2014.launchmine.utils.PreferencesUtils;
-import io.github.qiu2014.launchmine.Main;
 
 public class OptionsDialog extends JDialog {
     private Main main;
@@ -37,7 +37,20 @@ public class OptionsDialog extends JDialog {
         generalPanel.add(new JLabel("Default Memory (MB):"), gbc);
 
         gbc.gridx = 1;
-        JSpinner memorySpinner = new JSpinner(new SpinnerNumberModel(main.getPreferencesHandler().getMemory(), 512, 16384, 256));
+        // 创建内存微调器
+        SpinnerNumberModel memoryModel = new SpinnerNumberModel(main.getPreferencesHandler().getMemory(), 512, 16384, 256);
+        JSpinner memorySpinner = new JSpinner(memoryModel);
+
+        // 设置自定义编辑器，只允许整数输入
+        JSpinner.NumberEditor editor = new JSpinner.NumberEditor(memorySpinner, "#");
+        memorySpinner.setEditor(editor);
+
+        // 获取文本框并设置格式器
+        JFormattedTextField textField = ((JSpinner.NumberEditor) memorySpinner.getEditor()).getTextField();
+        textField.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
+                new javax.swing.text.NumberFormatter(java.text.NumberFormat.getIntegerInstance())
+        ));
+
         generalPanel.add(memorySpinner, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1;
@@ -105,18 +118,71 @@ public class OptionsDialog extends JDialog {
         // Add button actions
         saveBtn.addActionListener(e -> {
             try {
-                main.getPreferencesHandler().savePreferences(Integer.parseInt(memorySpinner.getValue().toString()), Integer.parseInt(widthField.toString()), Integer.parseInt(heightField.toString()), autoUpdateCheck.isSelected(), javaPathField.toString());
+                // 正确获取各个字段的值
+                int memory = ((Number) memorySpinner.getValue()).intValue();
+                int width = Integer.parseInt(widthField.getText().trim());
+                int height = Integer.parseInt(heightField.getText().trim());
+                boolean autoUpdate = autoUpdateCheck.isSelected();
+                String javaPath = javaPathField.getText().trim();
+
+                // 验证输入
+                if (width <= 0 || height <= 0) {
+                    JOptionPane.showMessageDialog(optionsDialog,
+                            "窗口宽度和高度必须大于0",
+                            "输入错误",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                main.getPreferencesHandler().savePreferences(memory, width, height, autoUpdate, javaPath);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(optionsDialog,
+                        "请输入有效的数字（宽度和高度）",
+                        "格式错误",
+                        JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
-                main.getLaunchUI().uiLogger.error(ex.getStackTrace());
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(optionsDialog,
+                        "保存失败: " + ex.getMessage(),
+                        "错误",
+                        JOptionPane.ERROR_MESSAGE);
             }
             optionsDialog.dispose();
         });
 
         applyBtn.addActionListener(e -> {
             try {
-                main.getPreferencesHandler().savePreferences(Integer.parseInt(memorySpinner.getValue().toString()), Integer.parseInt(widthField.toString()), Integer.parseInt(heightField.toString()), autoUpdateCheck.isSelected(), javaPathField.toString());
+                int memory = ((Number) memorySpinner.getValue()).intValue();
+                int width = Integer.parseInt(widthField.getText().trim());
+                int height = Integer.parseInt(heightField.getText().trim());
+                boolean autoUpdate = autoUpdateCheck.isSelected();
+                String javaPath = javaPathField.getText().trim();
+
+                // 验证输入
+                if (width <= 0 || height <= 0) {
+                    JOptionPane.showMessageDialog(optionsDialog,
+                            "窗口宽度和高度必须大于0",
+                            "输入错误",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                main.getPreferencesHandler().savePreferences(memory, width, height, autoUpdate, javaPath);
+                JOptionPane.showMessageDialog(optionsDialog,
+                        "设置已应用！",
+                        "成功",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(optionsDialog,
+                        "请输入有效的数字（宽度和高度）",
+                        "格式错误",
+                        JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
-                main.getLaunchUI().uiLogger.error(ex.getStackTrace());
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(optionsDialog,
+                        "应用失败: " + ex.getMessage(),
+                        "错误",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
 
